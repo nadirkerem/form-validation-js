@@ -5,23 +5,28 @@ const registerPassword = registerForm.elements['password'];
 const registerPasswordCheck = registerForm.elements['passwordCheck'];
 const registerTerms = registerForm.elements['terms'];
 
+const loginForm = document.getElementById('login');
+const loginUsername = loginForm.elements['username'];
+const loginPassword = loginForm.elements['password'];
+const loginRemember = loginForm.elements['persist'];
+
 registerForm.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  const isFormValidated = validateRegisterForm(event);
+  const isFormValidated = validateRegisterForm();
 
   if (!isFormValidated) {
     console.log('Not validated - Form is not validated');
     return false;
   }
 
-  const isUserUnique = localStorageChecker();
-  if (!isUserUnique) {
-    alert('Error. User already exists.');
+  const isUserExists = localStorageChecker('register');
+  if (isUserExists) {
+    alert('Error. Username or email already exists in the database.');
     return false;
   }
 
-  const isUserRegistered = localStorageSetter();
+  const isUserRegistered = localStorageSetter('register');
   if (!isUserRegistered) {
     alert('Error. User not registered.');
     return false;
@@ -30,6 +35,28 @@ registerForm.addEventListener('submit', (event) => {
   alert(`User ${registerUsername.value} registered successfully!`);
   event.target.reset();
 });
+
+loginForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+
+  const isFormValidated = validateLoginForm();
+
+  if (!isFormValidated) {
+    console.log('Not validated - Form is not validated');
+    return false;
+  }
+
+  const isCredentialsValid = localStorageChecker('login');
+  if (isCredentialsValid) {
+    return true;
+  }
+  if (!isCredentialsValid) {
+    alert('Error. Username or password is incorrect.');
+    return false;
+  }
+});
+
+// REGISTER FORM
 
 function validateRegisterForm() {
   const isUsernameValidated = validateRegisterUsername();
@@ -140,46 +167,118 @@ function validateTerms() {
   return true;
 }
 
-function localStorageChecker() {
-  const usernameValue = registerUsername.value;
-  const emailValue = registerEmail.value;
+// LOGIN FORM
 
-  let existingUsersArray = JSON.parse(localStorage.getItem('users'));
+function validateLoginForm() {
+  const isUsernameValidated = validateLoginUsername();
+  if (!isUsernameValidated) {
+    console.log("username isn't validated");
+    return false;
+  }
 
-  if (existingUsersArray) {
-    existingUsersArray.forEach((existingUser) => {
-      if (
-        existingUser.username === usernameValue.toLowerCase() ||
-        existingUser.email === emailValue.toLowerCase()
-      ) {
-        console.log('User already registered.');
-        return false;
-      }
-    });
+  const isPasswordValidated = validateLoginPassword();
+  if (!isPasswordValidated) {
+    console.log("password isn't validated");
+    return false;
   }
 
   return true;
 }
 
-function localStorageSetter() {
-  const usernameValue = registerUsername.value;
-  const emailValue = registerEmail.value;
-  const passwordValue = registerPassword.value;
+function validateLoginUsername() {
+  const usernameValue = loginUsername.value;
+  if (usernameValue.length === 0) {
+    alert('The username cannot be blank.');
+    loginUsername.focus();
+    return false;
+  }
+  return true;
+}
 
-  const user = {
-    username: usernameValue.toLowerCase(),
-    email: emailValue.toLowerCase(),
-    // basic encoding for password
-    password: window.btoa(passwordValue),
-  };
+function validateLoginPassword() {
+  const passwordValue = loginPassword.value;
+  if (passwordValue.length === 0) {
+    alert('The password cannot be blank.');
+    loginPassword.focus();
+    return false;
+  }
+  return true;
+}
 
+// LOCAL STORAGE
+
+function localStorageChecker(action) {
   let existingUsersArray = JSON.parse(localStorage.getItem('users'));
 
-  existingUsersArray = existingUsersArray
-    ? [...existingUsersArray, user]
-    : [user];
+  if (action === 'register') {
+    const usernameValue = registerUsername.value;
+    const emailValue = registerEmail.value;
+    if (existingUsersArray) {
+      for (let i = 0; i < existingUsersArray.length; i++) {
+        if (
+          existingUsersArray[i].username === usernameValue.toLowerCase() ||
+          existingUsersArray[i].email === emailValue.toLowerCase()
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
-  localStorage.setItem('users', JSON.stringify(existingUsersArray));
+  if (action === 'login') {
+    const usernameValue = loginUsername.value;
+    const passwordValue = loginPassword.value;
+    const RememberValue = loginRemember.checked;
 
-  return true;
+    if (existingUsersArray) {
+      for (let i = 0; i < existingUsersArray.length; i++) {
+        if (
+          existingUsersArray[i].username === usernameValue.toLowerCase() &&
+          atob(existingUsersArray[i].password) === passwordValue
+        ) {
+          if (RememberValue) {
+            existingUsersArray[i].remember = true;
+
+            localStorage.setItem('users', JSON.stringify(existingUsersArray));
+
+            alert(`User ${usernameValue} logged in and will be remembered.`);
+          } else {
+            existingUsersArray[i].remember = false;
+
+            localStorage.setItem('users', JSON.stringify(existingUsersArray));
+
+            alert(`User ${usernameValue} logged in.`);
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+}
+
+function localStorageSetter(action) {
+  if (action === 'register') {
+    const usernameValue = registerUsername.value;
+    const emailValue = registerEmail.value;
+    const passwordValue = registerPassword.value;
+
+    const user = {
+      username: usernameValue.toLowerCase(),
+      email: emailValue.toLowerCase(),
+      // basic encoding for password
+      password: btoa(passwordValue),
+    };
+
+    let existingUsersArray = JSON.parse(localStorage.getItem('users'));
+
+    existingUsersArray = existingUsersArray
+      ? [...existingUsersArray, user]
+      : [user];
+
+    localStorage.setItem('users', JSON.stringify(existingUsersArray));
+
+    return true;
+  }
 }
